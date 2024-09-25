@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_CREDENTIALS = 'dockerhub-ismahahah' // Jenkins credentials ID for Docker Hub
+        DOCKER_HUB_REPO = 'ismahahah/class_activity_3' // Update with your Docker Hub repo
+    }
+
+    triggers {
+        pollSCM('H/5 * * * *') // Polls SCM every 5 minutes
+    }
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                echo 'Cloning the repository...'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    def app = docker.build("${DOCKER_HUB_REPO}:${env.BUILD_ID}")
+                }
+            }
+        }
+
+        stage('Login to Docker Hub') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_HUB_CREDENTIALS) {
+                        echo 'Logged in to Docker Hub'
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_HUB_CREDENTIALS) {
+                        app.push()
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up...'
+            sh 'docker rmi ${DOCKER_HUB_REPO}:${env.BUILD_ID}' // Optional: remove the image from Jenkins after pushing
+        }
+    }
+}
